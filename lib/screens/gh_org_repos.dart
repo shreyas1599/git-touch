@@ -6,6 +6,7 @@ import 'package:git_touch/widgets/repository_item.dart';
 import 'package:provider/provider.dart';
 import 'package:github/github.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../generated/l10n.dart';
 
 /// There are some restrictions of organization repos with OAuth
 ///
@@ -16,26 +17,25 @@ class GhOrgReposScreen extends StatelessWidget {
   final String owner;
   GhOrgReposScreen(this.owner);
 
-  Future<ListPayload<Repository, int>> _query(BuildContext context,
-      [int page = 1]) async {
-    final auth = Provider.of<AuthModel>(context);
-    final rs = await auth.ghClient.getJSON<List, List<Repository>>(
-      '/orgs/$owner/repos?sort=updated&page=$page',
-      convert: (vs) => [for (var v in vs) Repository.fromJson(v)],
-    );
-    return ListPayload(
-      cursor: page + 1,
-      items: rs,
-      hasMore: rs.isNotEmpty, // TODO:
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListStatefulScaffold<Repository, int>(
-      title: AppBarTitle('Repositories'),
-      onRefresh: () => _query(context),
-      onLoadMore: (cursor) => _query(context, cursor),
+      title: AppBarTitle(S.of(context).repositories),
+      fetch: (page) async {
+        page = page ?? 1;
+        final rs = await context
+            .read<AuthModel>()
+            .ghClient
+            .getJSON<List, List<Repository>>(
+              '/orgs/$owner/repos?sort=updated&page=$page',
+              convert: (vs) => [for (var v in vs) Repository.fromJson(v)],
+            );
+        return ListPayload(
+          cursor: page + 1,
+          items: rs,
+          hasMore: rs.isNotEmpty, // TODO:
+        );
+      },
       itemBuilder: (v) {
         return RepositoryItem.gh(
           owner: v.owner.login,

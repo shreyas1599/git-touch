@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:git_touch/models/auth.dart';
 import 'package:git_touch/models/theme.dart';
@@ -11,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../widgets/link.dart';
 import '../widgets/loading.dart';
 import '../widgets/avatar.dart';
+import '../generated/l10n.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -44,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       onLongPress: () {
         theme.showActions(context, [
           ActionItem(
-            text: 'Remove account',
+            text: S.of(context).removeAccount,
             isDestructiveAction: true,
             onTap: (_) {
               auth.removeAccount(index);
@@ -127,8 +129,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void showError(err) {
-    final theme = Provider.of<ThemeModel>(context);
-    theme.showConfirm(context, Text('Something bad happens: $err'));
+    context
+        .read<ThemeModel>()
+        .showConfirm(context, Text(S.of(context).somethingBadHappens + '$err'));
   }
 
   @override
@@ -136,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = Provider.of<AuthModel>(context);
     final theme = Provider.of<ThemeModel>(context);
     return SingleScaffold(
-      title: AppBarTitle('Select account'),
+      title: AppBarTitle(S.of(context).selectAccount),
       body: auth.loading
           ? Center(child: Loading())
           : Container(
@@ -144,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   ...List.generate(auth.accounts.length, _buildAccountItem),
                   _buildAddItem(
-                    text: 'GitHub Account',
+                    text: S.of(context).githubAccount,
                     brand: FontAwesome5Brands.github,
                     onTap: () async {
                       theme.showActions(context, [
@@ -161,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               context,
                               _buildPopup(context, notes: [
                                 Text(
-                                  'GitTouch needs these permissions',
+                                  S.of(context).permissionRequiredMessage,
                                   style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400),
@@ -190,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   _buildAddItem(
-                    text: 'GitLab Account',
+                    text: S.of(context).gitlabAccount,
                     brand: FontAwesome5Brands.gitlab,
                     onTap: () async {
                       _domainController.text = 'https://gitlab.com';
@@ -201,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           showDomain: true,
                           notes: [
                             Text(
-                              'GitTouch needs these permissions',
+                              S.of(context).permissionRequiredMessage,
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w400),
                             ),
@@ -226,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   _buildAddItem(
-                    text: 'Bitbucket Account',
+                    text: S.of(context).bitbucketAccount,
                     brand: FontAwesome5Brands.bitbucket,
                     onTap: () async {
                       _domainController.text = 'https://bitbucket.org';
@@ -246,8 +249,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                 placeholder: 'App password',
                                 controller: _passwordController),
                             SizedBox(height: 8),
+                            Text.rich(
+                              TextSpan(children: [
+                                TextSpan(
+                                  text:
+                                      'Note: App password is different with the password. Follow ',
+                                ),
+                                TextSpan(
+                                  text: 'this guide',
+                                  style:
+                                      TextStyle(color: theme.palette.primary),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      theme.push(context,
+                                          'https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/');
+                                    },
+                                ),
+                                TextSpan(text: ' to create one.')
+                              ]),
+                            ),
+                            SizedBox(height: 8),
                             Text(
-                              'GitTouch needs these permissions',
+                              S.of(context).permissionRequiredMessage,
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w400),
                             ),
@@ -273,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   _buildAddItem(
-                    text: 'Gitea Account',
+                    text: S.of(context).giteaAccount,
                     brand: Octicons.git_branch, // TODO: brand icon
                     onTap: () async {
                       _domainController.text = 'https://gitea.com';
@@ -292,10 +315,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       }
                     },
                   ),
+                  _buildAddItem(
+                    text: S.of(context).giteeAccount + '(码云)',
+                    brand: Octicons.git_branch, // TODO: brand icon
+                    onTap: () async {
+                      final result = await theme.showConfirm(
+                        context,
+                        _buildPopup(context),
+                      );
+                      if (result == true) {
+                        try {
+                          await auth.loginToGitee(_tokenController.text);
+                          _tokenController.clear();
+                        } catch (err) {
+                          showError(err);
+                        }
+                      }
+                    },
+                  ),
                   Container(
                     padding: CommonStyle.padding,
                     child: Text(
-                      'Note: Long press to remove account',
+                      S.of(context).longPressToRemoveAccount,
                       style: TextStyle(
                         fontSize: 16,
                         color: theme.palette.secondaryText,

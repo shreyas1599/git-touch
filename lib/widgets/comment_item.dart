@@ -41,7 +41,7 @@ class _GhEmojiActionState extends State<GhEmojiAction> {
     var operation = isRemove ? 'remove' : 'add';
 
     try {
-      await Provider.of<AuthModel>(context).query('''
+      await context.read<AuthModel>().query('''
 mutation {
   ${operation}Reaction(input: {subjectId: "$id", content: $emojiKey}) {
     clientMutationId
@@ -53,8 +53,7 @@ mutation {
         payload[emojiKey]['viewerHasReacted'] = !isRemove;
       });
     } catch (e) {
-      final theme = Provider.of<ThemeModel>(context);
-      theme.showWarning(context, e);
+      context.read<ThemeModel>().showWarning(context, e);
     }
   }
 
@@ -138,24 +137,30 @@ class CommentItem extends StatelessWidget {
   final String login;
   final DateTime createdAt;
   final String body;
+  final String prefix;
   final List<Widget> widgets;
+  final List<ActionItem> commentActionItemList;
 
   CommentItem.gh(Map<String, dynamic> payload)
       : avatar = Avatar(
           url: payload['author']['avatarUrl'], // TODO: deleted user
-          linkUrl: '/' + payload['author']['login'],
+          linkUrl: '/github/' + payload['author']['login'],
         ),
         login = payload['author']['login'],
         createdAt = DateTime.parse(payload['createdAt']),
         body = payload['body'],
-        widgets = [GhEmojiAction(payload)];
+        widgets = [GhEmojiAction(payload)],
+        prefix = 'github',
+        commentActionItemList = []; // TODO
 
   CommentItem({
     @required this.avatar,
     @required this.login,
     @required this.createdAt,
     @required this.body,
+    @required this.prefix,
     this.widgets,
+    this.commentActionItemList,
   });
 
   @override
@@ -171,7 +176,7 @@ class CommentItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                UserName(login),
+                UserName(login, prefix),
                 SizedBox(height: 2),
                 Text(
                   timeago.format(createdAt),
@@ -181,12 +186,20 @@ class CommentItem extends StatelessWidget {
               ],
             ),
           ),
+          Align(
+              alignment: Alignment.centerRight,
+              child: ActionButton(
+                iconData: Octicons.kebab_horizontal,
+                title: 'Comment Actions',
+                items: [
+                  if (commentActionItemList != null) ...commentActionItemList
+                ],
+              )),
         ]),
         SizedBox(height: 12),
-        MarkdownView(body), // TODO: link
+        MarkdownFlutterView(body, padding: EdgeInsets.zero), // TODO: link
         SizedBox(height: 12),
-        if (widgets != null)
-          ...widgets
+        if (widgets != null) ...widgets
       ],
     );
   }

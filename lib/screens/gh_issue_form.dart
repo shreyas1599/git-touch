@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:git_touch/models/auth.dart';
@@ -25,6 +23,7 @@ class _GhIssueFormScreenState extends State<GhIssueFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeModel>(context);
+
     return CommonScaffold(
       title: Text('Submit an issue'),
       body: Column(
@@ -57,25 +56,15 @@ class _GhIssueFormScreenState extends State<GhIssueFormScreen> {
           CupertinoButton.filled(
             child: Text('Submit'),
             onPressed: () async {
-              final auth = Provider.of<AuthModel>(context);
-              final theme = Provider.of<ThemeModel>(context);
-
               final slug = RepositorySlug(widget.owner, widget.name);
-
-              // TODO: https://github.com/SpinlockLabs/github.dart/issues/211
-              // final res = await auth.ghClient.issues
-              //     .create(slug, IssueRequest(title: _title, body: _body));
-
-              final response = await auth.ghClient.request(
-                'POST',
-                '/repos/${slug.fullName}/issues',
-                body: jsonEncode({'title': _title, 'body': _body}),
-              );
-              final res = Issue.fromJson(
-                  jsonDecode(response.body) as Map<String, dynamic>);
+              final res = await context
+                  .read<AuthModel>()
+                  .ghClient
+                  .issues
+                  .create(slug, IssueRequest(title: _title, body: _body));
               await theme.push(
                 context,
-                '/${widget.owner}/${widget.name}/issues/${res.number}',
+                '/github/${widget.owner}/${widget.name}/issues/${res.number}',
                 replace: true,
               );
             },

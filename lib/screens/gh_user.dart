@@ -6,15 +6,17 @@ import 'package:git_touch/scaffolds/refresh_stateful.dart';
 import 'package:git_touch/utils/utils.dart';
 import 'package:git_touch/widgets/action_entry.dart';
 import 'package:git_touch/widgets/app_bar_title.dart';
+import 'package:git_touch/widgets/contribution.dart';
 import 'package:git_touch/widgets/mutation_button.dart';
 import 'package:git_touch/widgets/entry_item.dart';
 import 'package:git_touch/widgets/repository_item.dart';
 import 'package:git_touch/widgets/table_view.dart';
-import 'package:git_touch/widgets/text_contains_organization.dart';
+import 'package:git_touch/widgets/text_with_at.dart';
 import 'package:git_touch/models/auth.dart';
 import 'package:git_touch/widgets/user_header.dart';
 import 'package:provider/provider.dart';
 import 'package:git_touch/widgets/action_button.dart';
+import '../generated/l10n.dart';
 
 class GhUserScreen extends StatelessWidget {
   final String login;
@@ -62,7 +64,6 @@ class GhUserScreen extends StatelessWidget {
     final theme = Provider.of<ThemeModel>(context);
     final auth = Provider.of<AuthModel>(context);
     final login = p.login;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -72,92 +73,87 @@ class GhUserScreen extends StatelessWidget {
           login: p.login,
           createdAt: p.createdAt,
           bio: p.bio,
-          followWidget: p.viewerCanFollow == true
-              ? MutationButton(
-                  active: p.viewerIsFollowing,
-                  text: p.viewerIsFollowing ? 'Unfollow' : 'Follow',
-                  onPressed: () async {
-                    if (p.viewerIsFollowing) {
-                      await auth.ghClient.users.unfollowUser(p.login);
-                    } else {
-                      // TODO: https://github.com/SpinlockLabs/github.dart/pull/216
-                      // await auth.ghClient.users.followUser(p.login);
-                      await auth.ghClient.request(
-                          'PUT', '/user/following/${p.login}',
-                          statusCode: 204);
-                    }
-                    setState(() {
-                      p.viewerIsFollowing = !p.viewerIsFollowing;
-                    });
-                  },
-                )
-              : null,
+          isViewer: isViewer,
+          rightWidgets: [
+            if (p.viewerCanFollow)
+              MutationButton(
+                active: p.viewerIsFollowing,
+                text: p.viewerIsFollowing
+                    ? S.of(context).unfollow
+                    : S.of(context).follow,
+                onTap: () async {
+                  if (p.viewerIsFollowing) {
+                    await auth.ghClient.users.unfollowUser(p.login);
+                  } else {
+                    await auth.ghClient.users.followUser(p.login);
+                  }
+                  setState(() {
+                    p.viewerIsFollowing = !p.viewerIsFollowing;
+                  });
+                },
+              )
+          ],
         ),
         CommonStyle.border,
         Row(children: [
           EntryItem(
             count: p.repositories.totalCount,
-            text: 'Repositories',
-            url: '/$login?tab=repositories',
+            text: S.of(context).repositories,
+            url: '/github/$login?tab=repositories',
           ),
           EntryItem(
             count: p.starredRepositories.totalCount,
-            text: 'Stars',
-            url: '/$login?tab=stars',
+            text: S.of(context).stars,
+            url: '/github/$login?tab=stars',
           ),
           EntryItem(
             count: p.followers.totalCount,
-            text: 'Followers',
-            url: '/$login?tab=followers',
+            text: S.of(context).followers,
+            url: '/github/$login?tab=followers',
           ),
           EntryItem(
             count: p.following.totalCount,
-            text: 'Following',
-            url: '/$login?tab=following',
+            text: S.of(context).following,
+            url: '/github/$login?tab=following',
           ),
         ]),
         CommonStyle.border,
-        Container(
-          alignment: Alignment.center,
-          padding: CommonStyle.padding,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            reverse: true,
-            child: Wrap(
-              spacing: 3,
-              children: p.contributionsCollection.contributionCalendar.weeks
-                  .map((week) {
-                return Wrap(
-                  direction: Axis.vertical,
-                  spacing: 3,
-                  children: week.contributionDays.map((day) {
-                    var color = convertColor(day.color);
-                    if (theme.brightness == Brightness.dark) {
-                      color = Color.fromRGBO(0xff - color.red,
-                          0xff - color.green, 0xff - color.blue, 1);
-                    }
-                    return SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(color: color),
-                      ),
-                    );
-                  }).toList(),
-                );
-              }).toList(),
-            ),
-          ),
+        ContributionWidget(
+          weeks: [
+            for (final week
+                in p.contributionsCollection.contributionCalendar.weeks)
+              [
+                //  https://github.com/git-touch/git-touch/issues/122
+                for (final day in week.contributionDays)
+                  ContributionDay(hexColor: day.color)
+              ]
+          ],
         ),
         CommonStyle.border,
         TableView(
           hasIcon: true,
           items: [
+            TableViewItem(
+              leftIconData: Icons.rss_feed,
+              text: Text(S.of(context).events),
+              url: '/github/$login?tab=events',
+            ),
+            TableViewItem(
+              leftIconData: Octicons.book,
+              text: Text(S.of(context).gists),
+              url: '/github/$login?tab=gists',
+            ),
+            TableViewItem(
+              leftIconData: Octicons.home,
+              text: Text(S.of(context).organizations),
+              url: '/github/$login?tab=organizations',
+            ),
             if (isNotNullOrEmpty(p.company))
               TableViewItem(
                 leftIconData: Octicons.organization,
-                text: TextContainsOrganization(
-                  p.company,
+                text: TextWithAt(
+                  text: p.company,
+                  linkFactory: (text) => '/github/' + text.substring(1),
                   style: TextStyle(fontSize: 17, color: theme.palette.text),
                   oneLine: true,
                 ),
@@ -236,18 +232,23 @@ class GhUserScreen extends StatelessWidget {
         Row(children: [
           EntryItem(
             count: p.pinnableItems.totalCount,
-            text: 'Repositories',
-            url: '/${p.login}?tab=orgrepo',
+            text: S.of(context).repositories,
+            url: '/github/${p.login}?tab=orgrepo',
           ),
           EntryItem(
             count: p.membersWithRole.totalCount,
-            text: 'Members',
-            url: '/${p.login}?tab=people',
+            text: S.of(context).members,
+            url: '/github/${p.login}?tab=people',
           ),
         ]),
         TableView(
           hasIcon: true,
           items: [
+            TableViewItem(
+              leftIconData: Icons.rss_feed,
+              text: Text(S.of(context).events),
+              url: '/github/$login?tab=events',
+            ),
             if (isNotNullOrEmpty(p.location))
               TableViewItem(
                 leftIconData: Octicons.location,
@@ -296,15 +297,14 @@ class GhUserScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthModel>(context);
-    final theme = Provider.of<ThemeModel>(context);
     return RefreshStatefulScaffold<GhUserRepositoryOwner>(
-      fetchData: () async {
+      fetch: () async {
         final data = await auth.gqlClient.execute(GhUserQuery(
             variables:
                 GhUserArguments(login: login ?? '', isViewer: isViewer)));
         return isViewer ? data.data.viewer : data.data.repositoryOwner;
       },
-      title: AppBarTitle(isViewer ? 'Me' : login),
+      title: AppBarTitle(isViewer ? S.of(context).me : login),
       action: isViewer
           ? ActionEntry(
               iconData: Icons.settings,

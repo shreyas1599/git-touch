@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'package:flutter/material.dart';
 import 'package:git_touch/models/auth.dart';
 import 'package:git_touch/models/bitbucket.dart';
@@ -24,7 +24,7 @@ class BbObjectScreen extends StatelessWidget {
     final auth = Provider.of<AuthModel>(context);
     return RefreshStatefulScaffold(
       title: AppBarTitle(path ?? 'Files'),
-      fetchData: () async {
+      fetch: () async {
         final res = await auth
             .fetchBb('/repositories/$owner/$name/src/$ref/${path ?? ''}');
         if (res.headers[HttpHeaders.contentTypeHeader] == 'text/plain') {

@@ -7,6 +7,7 @@ import 'package:git_touch/widgets/comment_item.dart';
 import 'package:provider/provider.dart';
 import 'package:git_touch/models/auth.dart';
 import 'package:tuple/tuple.dart';
+import '../generated/l10n.dart';
 
 class GlIssueScreen extends StatelessWidget {
   final int projectId;
@@ -19,16 +20,14 @@ class GlIssueScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshStatefulScaffold<
         Tuple3<GitlabTodoTarget, Iterable<GitlabIssueNote>, List>>(
-      title: Text('Issue #$iid'),
-      fetchData: () async {
+      title: Text(S.of(context).issue + '#$iid'),
+      fetch: () async {
         final type = isMr ? 'merge_requests' : 'issues';
+        final auth = context.read<AuthModel>();
         final items = await Future.wait([
-          Provider.of<AuthModel>(context)
-              .fetchGitlab('/projects/$projectId/$type/$iid'),
-          Provider.of<AuthModel>(context)
-              .fetchGitlab('/projects/$projectId/$type/$iid/notes?sort=asc'),
-          Provider.of<AuthModel>(context)
-              .fetchGitlab('/projects/$projectId/$type/$iid/award_emoji'),
+          auth.fetchGitlab('/projects/$projectId/$type/$iid'),
+          auth.fetchGitlab('/projects/$projectId/$type/$iid/notes?sort=asc'),
+          auth.fetchGitlab('/projects/$projectId/$type/$iid/award_emoji'),
         ]);
         return Tuple3(
           GitlabTodoTarget.fromJson(items[0]),
@@ -53,6 +52,7 @@ class GlIssueScreen extends StatelessWidget {
                 createdAt: issue.createdAt,
                 body: issue.description,
                 login: issue.author.username,
+                prefix: 'gitlab',
               ),
             ),
             CommonStyle.border,
@@ -81,6 +81,7 @@ class GlIssueScreen extends StatelessWidget {
                         createdAt: note.createdAt,
                         body: note.body,
                         login: note.author.username,
+                        prefix: 'gitlab',
                       ),
                     )
               ],

@@ -7,6 +7,10 @@ import 'package:provider/provider.dart';
 import '../utils/utils.dart';
 import 'comment_item.dart';
 
+TextSpan createUserSpan(BuildContext context, String login) {
+  return createLinkSpan(context, login, '/github/$login');
+}
+
 class TimelineEventItem extends StatelessWidget {
   final String actor;
   final IconData iconData;
@@ -102,12 +106,19 @@ class TimelineItem extends StatelessWidget {
       case 'IssueComment':
         return CommentItem.gh(p);
       case 'CrossReferencedEvent':
+        final number = p['source']['number'] as int;
+        final owner = p['source']['repository']['owner']['login'] as String;
+        final name = p['source']['repository']['name'] as String;
+        final prefix = p['source']['__typename'] == 'Issue' ? 'issues' : 'pull';
         return TimelineEventItem(
           actor: p['actor']['login'],
           iconData: Octicons.primitive_dot,
           iconColor: GithubPalette.open,
-          textSpan: TextSpan(
-              text: ' referenced this on #' + p['source']['number'].toString()),
+          textSpan: TextSpan(children: [
+            TextSpan(text: ' referenced this on '),
+            createLinkSpan(context, '$owner/$name#$number',
+                '/github/$owner/$name/$prefix/$number'),
+          ]),
           p: p,
         );
       case 'ClosedEvent':
@@ -134,7 +145,7 @@ class TimelineItem extends StatelessWidget {
           p: p,
         );
       case 'UnsubscribedEvent':
-        return TimelineEventItem( 
+        return TimelineEventItem(
           actor: p['actor']['login'],
           textSpan: TextSpan(text: ' unsubscribed from this issue '),
           p: p,
@@ -145,7 +156,7 @@ class TimelineItem extends StatelessWidget {
           return Container();
         }
 
-        if(p['isCrossRepository']) {
+        if (p['isCrossRepository']) {
           return TimelineEventItem(
             actor: p['actor']['login'],
             iconData: Octicons.bookmark,
@@ -173,9 +184,8 @@ class TimelineItem extends StatelessWidget {
           iconData: Octicons.key,
           textSpan: TextSpan(children: [
             TextSpan(text: ' assigned this to '),
-            // TextSpan(text: p['user']['login'])
-            // User field is depracated. Assignee should be used
-            TextSpan(text: p['assignee']),
+            createLinkSpan(context, p['assignee']['login'],
+                '/github/' + p['assignee']['login']),
           ]),
           p: p,
         );
@@ -185,7 +195,8 @@ class TimelineItem extends StatelessWidget {
           iconData: Octicons.key,
           textSpan: TextSpan(children: [
             TextSpan(text: ' unassigned this from '),
-            TextSpan(text: p['assignee']),
+            createLinkSpan(context, p['assignee']['login'],
+                '/github/' + p['assignee']['login']),
           ]),
           p: p,
         );
@@ -270,11 +281,13 @@ class TimelineItem extends StatelessWidget {
 
       // issue only types
       case 'TransferredEvent':
-        return TimelineEventItem( 
+        return TimelineEventItem(
           actor: p['actor']['login'],
-          textSpan: TextSpan( 
+          textSpan: TextSpan(
             children: [
-              TextSpan(text: ' transferred this issue from ' + p['fromRepository']['name'])
+              TextSpan(
+                  text: ' transferred this issue from ' +
+                      p['fromRepository']['name'])
             ],
           ),
         );
@@ -319,14 +332,17 @@ class TimelineItem extends StatelessWidget {
           textSpan: TextSpan(text: ' pinned this issue '),
         );
       case 'DeployedEvent':
-        return TimelineEventItem(  
+        return TimelineEventItem(
           actor: p['actor']['login'],
-          textSpan: TextSpan(text: ' deployed the pull request ' + p['pullRequest']['name']),
+          textSpan: TextSpan(
+              text: ' deployed the pull request ' + p['pullRequest']['name']),
         );
       case 'DeploymentEnvironmentChangedEvent':
-        return TimelineEventItem(  
+        return TimelineEventItem(
           actor: p['actor']['login'],
-          textSpan: TextSpan(text: ' changed the deployment environment to ' + p['deploymentStatus']['deployment']['environment']),
+          textSpan: TextSpan(
+              text: ' changed the deployment environment to ' +
+                  p['deploymentStatus']['deployment']['environment']),
         );
       case 'HeadRefDeletedEvent':
         return TimelineEventItem(
@@ -340,17 +356,14 @@ class TimelineItem extends StatelessWidget {
           p: p,
         );
       case 'HeadRefRestoredEvent':
-        return TimelineEventItem(  
+        return TimelineEventItem(
           actor: p['actor']['login'],
-          textSpan: TextSpan(
-            children: [
-              TextSpan(text: ' restored the '),
-              WidgetSpan(  
-                child: PrimerBranchName(p['pullRequest']['headRef']['name'])
-              ),
-              TextSpan(text: ' branch')
-            ]
-          ),
+          textSpan: TextSpan(children: [
+            TextSpan(text: ' restored the '),
+            WidgetSpan(
+                child: PrimerBranchName(p['pullRequest']['headRefName'])),
+            TextSpan(text: ' branch')
+          ]),
         );
       case 'HeadRefForcePushedEvent':
         return TimelineEventItem(
@@ -360,7 +373,7 @@ class TimelineItem extends StatelessWidget {
             children: [
               TextSpan(text: ' force-pushed the '),
               WidgetSpan(
-                  child: PrimerBranchName(p['pullRequest']['headRef']['name'])),
+                  child: PrimerBranchName(p['pullRequest']['headRefName'])),
               TextSpan(text: ' branch from '),
               TextSpan(
                 text: (p['beforeCommit']['oid'] as String).substring(0, 7),
@@ -420,7 +433,7 @@ class TimelineItem extends StatelessWidget {
           p: p,
         );
       case 'ReviewDismissedEvent':
-        return TimelineEventItem( 
+        return TimelineEventItem(
           iconData: Octicons.eye,
           actor: p['actor']['login'],
           textSpan: TextSpan(children: [

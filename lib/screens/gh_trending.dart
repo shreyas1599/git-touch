@@ -8,17 +8,20 @@ import 'package:git_touch/widgets/user_item.dart';
 import 'package:github_trending/github_trending.dart';
 import 'package:git_touch/widgets/repository_item.dart';
 import 'package:provider/provider.dart';
+import '../generated/l10n.dart';
 
 class GhTrendingScreen extends StatelessWidget {
+  static final trending = GithubTrending(prefix: 'https://gtrend.yapie.me');
+
   Widget build(BuildContext context) {
     return TabStatefulScaffold<List>(
-      title: AppBarTitle('Trending'),
-      tabs: ['Repositories', 'Developers'],
+      title: AppBarTitle(S.of(context).trending),
+      tabs: [S.of(context).repositories, S.of(context).developers],
       fetchData: (tabIndex) async {
         if (tabIndex == 0) {
-          return getTrendingRepositories();
+          return trending.getTrendingRepositories();
         } else {
-          return getTrendingDevelopers();
+          return trending.getTrendingDevelopers();
         }
       },
       bodyBuilder: (payload, activeTab) {
@@ -46,33 +49,34 @@ class GhTrendingScreen extends StatelessWidget {
                   ]
                 : [
                     for (var v in payload.cast<GithubTrendingDeveloper>())
-                      UserItem.gh(
+                      UserItem.github(
                         login: v.username,
-                        // name: v.name,
+                        name: v.name,
                         avatarUrl: v.avatar,
-                        bio: Link(
-                          url: '/${v.username}/${v.repo.name}',
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                Octicons.repo,
-                                size: 17,
-                                color: theme.palette.secondaryText,
+                        bio: v.repo == null
+                            ? null
+                            : Link(
+                                url: '/github/${v.username}/${v.repo.name}',
+                                child: Row(
+                                  children: <Widget>[
+                                    Icon(
+                                      Octicons.repo,
+                                      size: 17,
+                                      color: theme.palette.secondaryText,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                        child: Text(
+                                      '${v.username} / ${v.repo.name}',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        color: theme.palette.secondaryText,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ))
+                                  ],
+                                ),
                               ),
-                              SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  '${v.username} / ${v.repo.name}',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    color: theme.palette.secondaryText,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                )
-                              )
-                            ],
-                          ),
-                        ),
                       )
                   ],
           ),

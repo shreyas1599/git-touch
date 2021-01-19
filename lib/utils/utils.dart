@@ -1,5 +1,4 @@
-import 'dart:io';
-import 'package:fluro/fluro.dart';
+import 'package:universal_io/io.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
@@ -26,6 +25,10 @@ class StorageKeys {
   static const codeThemeDark = 'code-theme-dark';
   static const iCodeFontSize = 'code-font-size';
   static const codeFontFamily = 'code-font-family';
+  static const markdown = 'markdown';
+
+  static getDefaultStartTabKey(String platform) =>
+      'default-start-tab-$platform';
 }
 
 class CommonStyle {
@@ -46,7 +49,7 @@ Color convertColor(String cssHex) {
   if (cssHex.length == 3) {
     cssHex = cssHex.split('').map((char) => char + char).join('');
   }
-  return Color(int.parse('ff' + cssHex, radix: 16));
+  return Color(int.tryParse('ff' + cssHex, radix: 16) ?? 0);
 }
 
 Color getFontColorByBrightness(Color color) {
@@ -74,10 +77,6 @@ TextSpan createLinkSpan(
         theme.push(context, url);
       },
   );
-}
-
-TextSpan createUserSpan(BuildContext context, String login) {
-  return createLinkSpan(context, login, '/$login');
 }
 
 Tuple2<String, String> parseRepositoryFullName(String fullName) {

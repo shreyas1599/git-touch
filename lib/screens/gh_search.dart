@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:git_touch/models/auth.dart';
 import 'package:git_touch/widgets/repository_item.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../generated/l10n.dart';
 
 class GhSearchScreen extends StatefulWidget {
   @override
@@ -46,7 +47,8 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
       _loading = true;
     });
     try {
-      var data = await Provider.of<AuthModel>(context).query('''
+      final auth = context.read<AuthModel>();
+      final data = await auth.query('''
 {
   repository: search(first: $pageSize, type: REPOSITORY, query: "$keyword") {
     nodes {
@@ -112,7 +114,7 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
   }
 
   Widget _buildInput() {
-    final theme = Provider.of<ThemeModel>(context); 
+    final theme = Provider.of<ThemeModel>(context);
     switch (Provider.of<ThemeModel>(context).theme) {
       case AppThemeType.cupertino:
         return Container(
@@ -124,7 +126,7 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
                 Icon(Octicons.search, size: 20, color: PrimerColors.gray400),
               ],
             ),
-            placeholder: 'Search',
+            placeholder: S.of(context).search,
             clearButtonMode: OverlayVisibilityMode.editing,
             textInputAction: TextInputAction.go,
             onSubmitted: (_) => _query(),
@@ -133,7 +135,7 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
         );
       default:
         return TextField(
-          decoration: InputDecoration.collapsed(hintText: 'Search'),
+          decoration: InputDecoration.collapsed(hintText: S.of(context).search),
           textInputAction: TextInputAction.go,
           onSubmitted: (_) => _query(),
           controller: _controller,
@@ -184,9 +186,9 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
           isFork: p['isFork'],
         );
       case 1:
-        return UserItem.gh(
+        return UserItem.github(
           login: p['login'],
-          // name: p['name'],
+          name: p['name'],
           avatarUrl: p['avatarUrl'],
           bio: Text(p['bio'] ?? ''),
         );
@@ -196,10 +198,10 @@ class _GhSearchScreenState extends State<GhSearchScreen> {
           author: p['author']['login'],
           avatarUrl: p['author']['avatarUrl'],
           commentCount: p['comments']['totalCount'],
-          number: p['number'],
+          subtitle: '#' + p['number'].toString(),
           title: p['title'],
           updatedAt: DateTime.parse(p['updatedAt']),
-          url: Uri.parse(p['url']).path,
+          url: '/github' + Uri.parse(p['url']).path,
           isPr: p['__typename'] == 'PullRequest',
         );
     }

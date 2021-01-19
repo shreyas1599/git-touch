@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:git_touch/models/theme.dart';
 import 'package:git_touch/widgets/avatar.dart';
-import 'package:git_touch/widgets/label.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../utils/utils.dart';
@@ -35,7 +34,7 @@ comments {
 
 class IssueItem extends StatelessWidget {
   final String url;
-  final int number;
+  final String subtitle;
   final String title;
   final int commentCount;
   final DateTime updatedAt;
@@ -46,7 +45,7 @@ class IssueItem extends StatelessWidget {
 
   IssueItem({
     @required this.url,
-    @required this.number,
+    @required this.subtitle,
     @required this.title,
     @required this.commentCount,
     @required this.updatedAt,
@@ -84,7 +83,7 @@ class IssueItem extends StatelessWidget {
                             children: [
                               TextSpan(text: '$title '),
                               TextSpan(
-                                text: '#$number',
+                                text: '$subtitle',
                                 style: TextStyle(
                                   color: theme.palette.tertiaryText,
                                   fontWeight: FontWeight.normal,
@@ -119,7 +118,15 @@ class IssueItem extends StatelessWidget {
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                               ],
-                              Text(' opened ' + timeago.format(updatedAt)),
+                              Expanded(
+                                  child: Text(
+                                ' opened ' + timeago.format(updatedAt),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  color: theme.palette.secondaryText,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              )),
                               if (commentCount > 0) ...[
                                 Expanded(child: SizedBox()),
                                 Icon(Octicons.comment,

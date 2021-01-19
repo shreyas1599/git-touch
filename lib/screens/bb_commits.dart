@@ -5,6 +5,7 @@ import 'package:git_touch/scaffolds/list_stateful.dart';
 import 'package:git_touch/widgets/app_bar_title.dart';
 import 'package:git_touch/widgets/commit_item.dart';
 import 'package:provider/provider.dart';
+import '../generated/l10n.dart';
 
 class BbCommitsScreen extends StatelessWidget {
   final String owner;
@@ -12,27 +13,22 @@ class BbCommitsScreen extends StatelessWidget {
   final String ref;
   BbCommitsScreen(this.owner, this.name, this.ref);
 
-  Future<ListPayload<BbCommit, String>> _query(BuildContext context,
-      [String nextUrl]) async {
-    final auth = Provider.of<AuthModel>(context);
-    final res = await auth
-        .fetchBbWithPage(nextUrl ?? '/repositories/$owner/$name/commits/$ref');
-    return ListPayload(
-      cursor: res.cursor,
-      hasMore: res.hasMore,
-      items: <BbCommit>[
-        for (var v in res.data) BbCommit.fromJson(v),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthModel>(context);
     return ListStatefulScaffold<BbCommit, String>(
-      title: AppBarTitle('Commits'),
-      onRefresh: () => _query(context),
-      onLoadMore: (page) => _query(context, page),
+      title: AppBarTitle(S.of(context).commits),
+      fetch: (nextUrl) async {
+        final res = await context.read<AuthModel>().fetchBbWithPage(
+            nextUrl ?? '/repositories/$owner/$name/commits/$ref');
+        return ListPayload(
+          cursor: res.cursor,
+          hasMore: res.hasMore,
+          items: <BbCommit>[
+            for (var v in res.data) BbCommit.fromJson(v),
+          ],
+        );
+      },
       itemBuilder: (v) {
         return CommitItem(
           url: '${auth.activeAccount.domain}/$owner/$name/commits/${v.hash}',

@@ -197,18 +197,42 @@ __typename
   actor {
     login
   }
-  assignee
+  assignee {
+    __typename
+    ... on User {
+      login
+    }
+    ... on Bot {
+      login
+    }
+    ... on Organization {
+      login
+    }
+    ... on Mannequin {
+      login
+    }
+  }
 }
 ... on UnassignedEvent {
   createdAt
   actor {
     login
   }
-  assignee
+  assignee {
+    }
+    ... on Bot {
+      login
+    }
+    ... on Organization {
+      login
+    }
+    ... on Mannequin {
+      login
+    }
+  }
 }
 ... on SubscribedEvent {
   createdAt
-  actor {
     login
   }
 }
@@ -286,9 +310,7 @@ __typename
     login
   }
   pullRequest {
-    headRef {
-      name
-    }
+    headRefName
   }
 }
 ... on BaseRefForcePushedEvent {
@@ -314,9 +336,7 @@ __typename
     login
   }
   pullRequest {
-    headRef {
-      name
-    }
+    headRefName
   }
   beforeCommit {
     oid
@@ -407,7 +427,7 @@ __typename
       }
     }
 
-    var data = await Provider.of<AuthModel>(context).query('''
+    var data = await context.read<AuthModel>().query('''
 fragment CommentParts on Comment {
   id
   createdAt
@@ -467,7 +487,6 @@ fragment ReactableParts on Reactable {
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthModel>(context);
     return LongListStatefulScaffold(
       title: Text(isPullRequest ? 'Pull Request' : 'Issue'),
       trailingBuilder: (payload, setState) {
@@ -479,14 +498,15 @@ fragment ReactableParts on Reactable {
                 ActionItem(
                   text: payload['closed'] ? 'Reopen issue' : 'Close issue',
                   onTap: (_) async {
-                    final res = await auth.gqlClient.execute(
-                      GhOpenIssueQuery(
-                        variables: GhOpenIssueArguments(
-                          id: payload['id'],
-                          open: payload['closed'],
-                        ),
-                      ),
-                    );
+                    final res = await context
+                        .read<AuthModel>()
+                        .gqlClient
+                        .execute(GhOpenIssueQuery(
+                          variables: GhOpenIssueArguments(
+                            id: payload['id'],
+                            open: payload['closed'],
+                          ),
+                        ));
                     setState(() {
                       payload['closed'] = res.data.reopenIssue?.issue?.closed ??
                           res.data.closeIssue.issue.closed;
@@ -509,7 +529,7 @@ fragment ReactableParts on Reactable {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Link(
-                    url: '/$owner/$name',
+                    url: '/github/$owner/$name',
                     child: Row(
                       children: <Widget>[
                         Avatar(
@@ -587,7 +607,7 @@ fragment ReactableParts on Reactable {
                           ],
                         ),
                       ),
-                      url: 'https://github.com/$owner/$name/pull/$number/files',
+                      url: '/github/$owner/$name/pull/$number/files',
                     ),
                     CommonStyle.border,
                   ],

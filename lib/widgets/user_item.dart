@@ -14,24 +14,54 @@ const userGqlChunk = '''
 
 class UserItem extends StatelessWidget {
   final String login;
-  // final String name;
+  final String name;
   final String avatarUrl;
   final Widget bio;
   final String url;
 
-  UserItem.gh({
+  UserItem.github({
     @required this.login,
-    // @required this.name,
+    @required this.name,
     @required this.avatarUrl,
     @required this.bio,
-  }) : url = '/$login';
+  }) : url = '/github/$login';
 
-  UserItem({
+  UserItem.gitlab({
     @required this.login,
+    @required this.name,
     @required this.avatarUrl,
     @required this.bio,
-    @required this.url,
-  });
+    @required int id,
+  }) : url = '/gitlab/user/$id';
+
+  UserItem.gitlabGroup({
+    @required this.login,
+    @required this.name,
+    @required this.avatarUrl,
+    @required this.bio,
+    @required int id,
+  }) : url = '/gitlab/group/$id';
+
+  UserItem.gitea({
+    @required this.login,
+    @required this.name,
+    @required this.avatarUrl,
+    @required this.bio,
+  }) : url = '/gitea/$login';
+
+  UserItem.gitee({
+    @required this.login,
+    @required this.name,
+    @required this.avatarUrl,
+    @required this.bio,
+  }) : url = '/gitee/$login';
+
+  UserItem.bitbucket({
+    @required this.login,
+    @required this.name,
+    @required this.avatarUrl,
+    @required this.bio,
+  }) : url = '/bitbucket/$login?team=1';
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +71,7 @@ class UserItem extends StatelessWidget {
       child: Container(
         padding: CommonStyle.padding,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Avatar(url: avatarUrl, size: AvatarSize.large),
             SizedBox(width: 10),
@@ -50,21 +81,28 @@ class UserItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Row(
+                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
                     children: <Widget>[
-                      // Text(
-                      //   name ?? login,
-                      //   style: TextStyle(
-                      //     color: theme.palette.text,
-                      //     fontSize: 18,
-                      //   ),
-                      // ),
-                      // SizedBox(width: 8),
-                      Text(
-                        login,
-                        style: TextStyle(
-                          color: theme.palette.primary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                      if (name != null && name.isNotEmpty) ...[
+                        Text(
+                          name,
+                          style: TextStyle(
+                            color: theme.palette.text,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          login,
+                          style: TextStyle(
+                            color: theme.palette.text,
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:async';
 import 'package:fimber/fimber.dart';
 import 'package:fluro/fluro.dart';
@@ -8,6 +8,7 @@ import 'package:git_touch/utils/utils.dart';
 import 'package:git_touch/widgets/action_button.dart';
 import 'package:primer/primer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class DialogOption<T> {
   final T value;
@@ -30,6 +31,12 @@ class AppBrightnessType {
     AppBrightnessType.light,
     AppBrightnessType.dark
   ];
+}
+
+class AppMarkdownType {
+  static const flutter = 0;
+  static const webview = 1;
+  static const values = [AppMarkdownType.flutter, AppMarkdownType.webview];
 }
 
 class PickerItem<T> {
@@ -98,13 +105,14 @@ class Palette {
 }
 
 class ThemeModel with ChangeNotifier {
+  String markdownCss;
+
   int _theme;
   int get theme => _theme;
   bool get ready => _theme != null;
 
   Brightness systemBrightness = Brightness.light;
   void setSystemBrightness(Brightness v) {
-    // print('systemBrightness: $v');
     if (v != systemBrightness) {
       Future.microtask(() {
         systemBrightness = v;
@@ -136,7 +144,23 @@ class ThemeModel with ChangeNotifier {
     notifyListeners();
   }
 
-  final router = Router();
+  // markdown render engine
+  int _markdown;
+  int get markdown => _markdown;
+  Future<void> setMarkdown(int v) async {
+    _markdown = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(StorageKeys.markdown, v);
+    Fimber.d('write markdown engine: $v');
+    notifyListeners();
+  }
+
+  bool get shouldUseMarkdownFlutterView {
+    // WebView on macOS not working
+    return Platform.isMacOS || markdown == AppMarkdownType.flutter;
+  }
+
+  final router = FluroRouter();
 
   final paletteLight = Palette(
     primary: PrimerColors.blue500,
@@ -168,12 +192,15 @@ class ThemeModel with ChangeNotifier {
   }
 
   Future<void> init() async {
+    markdownCss = await rootBundle.loadString('images/github-markdown.css');
+
     final prefs = await SharedPreferences.getInstance();
+
     final v = prefs.getInt(StorageKeys.iTheme);
     Fimber.d('read theme: $v');
     if (AppThemeType.values.contains(v)) {
       _theme = v;
-    } else if (Platform.isIOS) {
+    } else if (Platform.isIOS || Platform.isMacOS) {
       _theme = AppThemeType.cupertino;
     } else {
       _theme = AppThemeType.material;
@@ -182,6 +209,10 @@ class ThemeModel with ChangeNotifier {
     Fimber.d('read brightness: $b');
     if (AppBrightnessType.values.contains(b)) {
       _brightnessValue = b;
+    }
+    final m = prefs.getInt(StorageKeys.markdown);
+    if (AppMarkdownType.values.contains(m)) {
+      _markdown = m;
     }
 
     notifyListeners();
@@ -286,39 +317,80 @@ class ThemeModel with ChangeNotifier {
     await showCupertinoModalPopup(
       context: context,
       builder: (context) {
-        return Container(
-          height: 216,
-          child: CupertinoPicker(
-            backgroundColor: palette.background,
-            children: <Widget>[
-              for (var v in groupItem.items)
-                Text(v.text, style: TextStyle(color: palette.text)),
-            ],
-            itemExtent: 40,
-            scrollController: FixedExtentScrollController(
-                initialItem: groupItem.items
-                    .toList()
-                    .indexWhere((v) => v.value == groupItem.value)),
-            onSelectedItemChanged: (index) {
-              _selectedItem = groupItem.items[index].value;
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              alignment: Alignment.bottomCenter,
+              decoration: BoxDecoration(
+                color: palette.background,
+                border: Border(
+                  bottom: BorderSide(
+                    color: palette.grayBackground,
+                    width: 0.0,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  CupertinoButton(
+                    child: Text('Cancel'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _selectedItem = groupItem.value;
+                    },
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 5.0,
+                    ),
+                  ),
+                  CupertinoButton(
+                    child: Text('Confirm'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      groupItem.onClose(_selectedItem);
+                    },
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 5.0,
+                    ),
+                  )
+                ],
+              ),
+            ),
+            Container(
+              height: 216,
+              child: CupertinoPicker(
+                backgroundColor: palette.background,
+                children: <Widget>[
+                  for (var v in groupItem.items)
+                    Text(v.text, style: TextStyle(color: palette.text)),
+                ],
+                itemExtent: 40,
+                scrollController: FixedExtentScrollController(
+                    initialItem: groupItem.items
+                        .toList()
+                        .indexWhere((v) => v.value == groupItem.value)),
+                onSelectedItemChanged: (index) {
+                  _selectedItem = groupItem.items[index].value;
 
-              if (groupItem.onChange != null) {
-                if (_debounce?.isActive ?? false) {
-                  _debounce.cancel();
-                }
+                  if (groupItem.onChange != null) {
+                    if (_debounce?.isActive ?? false) {
+                      _debounce.cancel();
+                    }
 
-                _debounce = Timer(const Duration(milliseconds: 500), () {
-                  groupItem.onChange(_selectedItem);
-                });
-              }
-            },
-          ),
+                    _debounce = Timer(const Duration(milliseconds: 500), () {
+                      groupItem.onChange(_selectedItem);
+                    });
+                  }
+                },
+              ),
+            )
+          ],
         );
       },
     );
-    if (groupItem.onClose != null) {
-      groupItem.onClose(_selectedItem);
-    }
   }
 
   showActions(BuildContext context, List<ActionItem> actionItems) async {

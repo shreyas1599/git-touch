@@ -1,8 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+// import 'package:in_app_review/in_app_review.dart';
+import 'package:universal_io/io.dart';
 import 'package:git_touch/models/bitbucket.dart';
 import 'package:git_touch/models/gitea.dart';
+import 'package:git_touch/models/gitee.dart';
 import 'package:git_touch/utils/request_serilizer.dart';
 import 'package:github/github.dart';
 import 'package:gql_http_link/gql_http_link.dart';
@@ -26,6 +28,7 @@ class PlatformType {
   static const gitlab = 'gitlab';
   static const bitbucket = 'bitbucket';
   static const gitea = 'gitea';
+  static const gitee = 'gitee';
 }
 
 class DataWithPage<T> {
@@ -56,6 +59,9 @@ class BbPagePayload<T> {
 
 class AuthModel with ChangeNotifier {
   static const _apiPrefix = 'https://api.github.com';
+
+  // static final inAppReview = InAppReview.instance;
+  var hasRequestedReview = false;
 
   List<Account> _accounts;
   int activeAccountIndex;
@@ -148,8 +154,14 @@ class AuthModel with ChangeNotifier {
       if (info['message'] != null) {
         throw info['message'];
       }
+      if (info['error'] != null) {
+        throw info['error'] +
+            '. ' +
+            (info['error_description'] != null
+                ? info['error_description']
+                : '');
+      }
       final user = GitlabUser.fromJson(info);
-
       await _addAccount(Account(
         platform: PlatformType.gitlab,
         domain: domain,
@@ -169,9 +181,22 @@ class AuthModel with ChangeNotifier {
     return res.body;
   }
 
-  Future fetchGitlab(String p) async {
-    final res = await http.get('${activeAccount.domain}/api/v4$p',
-        headers: {'Private-Token': token});
+  Future fetchGitlab(String p,
+      {isPost = false, Map<String, dynamic> body = const {}}) async {
+    http.Response res;
+    if (isPost) {
+      res = await http.post(
+        '${activeAccount.domain}/api/v4$p',
+        headers: {
+          'Private-Token': token,
+          HttpHeaders.contentTypeHeader: 'application/json'
+        },
+        body: jsonEncode(body),
+      );
+    } else {
+      res = await http.get('${activeAccount.domain}/api/v4$p',
+          headers: {'Private-Token': token});
+    }
     final info = json.decode(utf8.decode(res.bodyBytes));
     if (info is Map && info['message'] != null) throw info['message'];
     return info;
@@ -220,22 +245,167 @@ class AuthModel with ChangeNotifier {
     }
   }
 
-  Future fetchGitea(String p) async {
-    final res = await http.get('${activeAccount.domain}/api/v1$p',
-        headers: {'Authorization': 'token $token'});
+  Future fetchGitea(
+    String p, {
+    requestType = 'GET',
+    Map<String, dynamic> body = const {},
+  }) async {
+    http.Response res;
+    Map<String, String> headers = {
+      'Authorization': 'token $token',
+      HttpHeaders.contentTypeHeader: 'application/json'
+    };
+    switch (requestType) {
+      case 'DELETE':
+        {
+          await http.delete(
+            '${activeAccount.domain}/api/v1$p',
+            headers: headers,
+          );
+          break;
+        }
+      case 'POST':
+        {
+          res = await http.post(
+            '${activeAccount.domain}/api/v1$p',
+            headers: headers,
+            body: jsonEncode(body),
+          );
+          break;
+        }
+      case 'PATCH':
+        {
+          res = await http.patch(
+            '${activeAccount.domain}/api/v1$p',
+            headers: headers,
+            body: jsonEncode(body),
+          );
+          break;
+        }
+      default:
+        {
+          res = await http.get('${activeAccount.domain}/api/v1$p',
+              headers: headers);
+          break;
+        }
+    }
+    if (requestType != 'DELETE') {
+      final info = json.decode(utf8.decode(res.bodyBytes));
+      return info;
+    }
+    return;
+  }
+
+  Future<DataWithPage> fetchGiteaWithPage(String path,
+      {int page, int limit}) async {
+    page = page ?? 1;
+    limit = limit ?? pageSize;
+
+    var uri = Uri.parse('${activeAccount.domain}/api/v1$path');
+    uri = uri.replace(
+      queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+        ...uri.queryParameters,
+      },
+    );
+    final res = await http.get(uri, headers: {'Authorization': 'token $token'});
+    final info = json.decode(utf8.decode(res.bodyBytes));
+
+    return DataWithPage(
+      data: info,
+      cursor: page + 1,
+      hasMore: info is List && info.length > 0,
+      total: int.tryParse(res.headers['x-total-count'] ?? ''),
+    );
+  }
+
+  Future fetchGitee(
+    String p, {
+    requestType = 'GET',
+    Map<String, dynamic> body = const {},
+  }) async {
+    http.Response res;
+    Map<String, String> headers = {
+      'Authorization': 'token $token',
+      HttpHeaders.contentTypeHeader: 'application/json'
+    };
+    switch (requestType) {
+      case 'DELETE':
+        {
+          await http.delete(
+            '${activeAccount.domain}/api/v5$p',
+            headers: headers,
+          );
+          return;
+        }
+      case 'PUT':
+        {
+          await http.put(
+            '${activeAccount.domain}/api/v5$p',
+            headers: headers,
+          );
+          return;
+        }
+      case 'POST':
+        {
+          res = await http.post(
+            '${activeAccount.domain}/api/v5$p',
+            headers: headers,
+            body: jsonEncode(body),
+          );
+          break;
+        }
+      case 'PATCH':
+        {
+          res = await http.patch(
+            '${activeAccount.domain}/api/v5$p',
+            headers: headers,
+            body: jsonEncode(body),
+          );
+          break;
+        }
+      case 'NO CONTENT':
+        {
+          res = await http.get('${activeAccount.domain}/api/v5$p',
+              headers: headers);
+          return res;
+        }
+      default:
+        {
+          res = await http.get('${activeAccount.domain}/api/v5$p',
+              headers: headers);
+          break;
+        }
+    }
     final info = json.decode(utf8.decode(res.bodyBytes));
     return info;
   }
 
-  Future<DataWithPage> fetchGiteaWithPage(String p) async {
-    final res = await http.get('${activeAccount.domain}/api/v1$p',
-        headers: {'Authorization': 'token $token'});
+  Future<DataWithPage> fetchGiteeWithPage(String path,
+      {int page, int limit}) async {
+    page = page ?? 1;
+    limit = limit ?? pageSize;
+
+    var uri = Uri.parse('${activeAccount.domain}/api/v5$path');
+    uri = uri.replace(
+      queryParameters: {
+        'page': page.toString(),
+        'per_page': limit.toString(),
+        ...uri.queryParameters,
+      },
+    );
+    final res = await http.get(uri, headers: {'Authorization': 'token $token'});
     final info = json.decode(utf8.decode(res.bodyBytes));
+
+    final totalPage = int.tryParse(res.headers['total_page'] ?? '');
+    final totalCount = int.tryParse(res.headers['total_count'] ?? '');
+
     return DataWithPage(
       data: info,
-      cursor: int.tryParse(res.headers["x-page"] ?? ''),
-      hasMore: res.headers['x-hasmore'] == 'true',
-      total: int.tryParse(res.headers['x-total'] ?? ''),
+      cursor: page + 1,
+      hasMore: totalPage == null ? info.length > limit : totalPage > page,
+      total: totalCount,
     );
   }
 
@@ -261,6 +431,7 @@ class AuthModel with ChangeNotifier {
         login: username,
         avatarUrl: user.avatarUrl,
         appPassword: appPassword,
+        accountId: user.accountId,
       ));
     } finally {
       loading = false;
@@ -268,7 +439,11 @@ class AuthModel with ChangeNotifier {
     }
   }
 
-  Future<http.Response> fetchBb(String p) async {
+  Future<http.Response> fetchBb(
+    String p, {
+    isPost = false,
+    Map<String, dynamic> body = const {},
+  }) async {
     if (p.startsWith('/') && !p.startsWith('/api')) p = '/api/2.0$p';
     final input = Uri.parse(p);
     final uri = Uri.parse(activeAccount.domain).replace(
@@ -276,11 +451,26 @@ class AuthModel with ChangeNotifier {
       path: input.path,
       query: input.query,
     );
+    if (isPost) {
+      return http.post(
+        uri,
+        headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+        body: jsonEncode(body),
+      );
+    }
     return http.get(uri);
   }
 
-  Future fetchBbJson(String p) async {
-    final res = await fetchBb(p);
+  Future fetchBbJson(
+    String p, {
+    isPost = false,
+    Map<String, dynamic> body = const {},
+  }) async {
+    final res = await fetchBb(
+      p,
+      isPost: isPost,
+      body: body,
+    );
     return json.decode(utf8.decode(res.bodyBytes));
   }
 
@@ -293,6 +483,32 @@ class AuthModel with ChangeNotifier {
       data: v.values,
       hasMore: v.next != null,
     );
+  }
+
+  Future loginToGitee(String token) async {
+    token = token.trim();
+    try {
+      loading = true;
+      notifyListeners();
+      final res = await http.get('https://gitee.com/api/v5/user',
+          headers: {'Authorization': 'token $token'});
+      final info = json.decode(res.body);
+      if (info['message'] != null) {
+        throw info['message'];
+      }
+      final user = GiteeUser.fromJson(info);
+
+      await _addAccount(Account(
+        platform: PlatformType.gitee,
+        domain: 'https://gitee.com',
+        token: token,
+        login: user.login,
+        avatarUrl: user.avatarUrl,
+      ));
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> init() async {
@@ -325,17 +541,29 @@ class AuthModel with ChangeNotifier {
   }
 
   var rootKey = UniqueKey();
-  void setActiveAccountAndReload(int index) {
+  setActiveAccountAndReload(int index) async {
     // https://stackoverflow.com/a/50116077
     rootKey = UniqueKey();
     activeAccountIndex = index;
+    final prefs = await SharedPreferences.getInstance();
+    _activeTab = prefs.getInt(
+            StorageKeys.getDefaultStartTabKey(activeAccount.platform)) ??
+        0;
     _ghClient = null;
     _gqlClient = null;
     notifyListeners();
-  }
 
-  Map<String, String> get _headers =>
-      {HttpHeaders.authorizationHeader: 'token $token'};
+    // TODO: strategy
+    // waiting for 1min to request review
+    // if (!hasRequestedReview) {
+    //   hasRequestedReview = true;
+    //   Timer(Duration(minutes: 1), () async {
+    //     if (await inAppReview.isAvailable()) {
+    //       inAppReview.requestReview();
+    //     }
+    //   });
+    // }
+  }
 
   // http timeout
   var _timeoutDuration = Duration(seconds: 10);
@@ -401,5 +629,17 @@ class AuthModel with ChangeNotifier {
     launchUrl(
       'https://github.com/login/oauth/authorize?client_id=$clientId&redirect_uri=gittouch://login&scope=$scope&state=$_oauthState',
     );
+  }
+
+  int _activeTab = 0;
+  int get activeTab => _activeTab;
+
+  Future<void> setActiveTab(int v) async {
+    _activeTab = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        StorageKeys.getDefaultStartTabKey(activeAccount.platform), v);
+    Fimber.d('write default start tab for ${activeAccount.platform}: $v');
+    notifyListeners();
   }
 }

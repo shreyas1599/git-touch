@@ -6,6 +6,8 @@ import 'package:git_touch/models/theme.dart';
 import 'package:git_touch/screens/bb_explore.dart';
 import 'package:git_touch/screens/bb_teams.dart';
 import 'package:git_touch/screens/bb_user.dart';
+import 'package:git_touch/screens/ge_user.dart';
+import 'package:git_touch/screens/gl_search.dart';
 import 'package:git_touch/screens/gt_orgs.dart';
 import 'package:git_touch/screens/gt_user.dart';
 import 'package:git_touch/screens/gl_explore.dart';
@@ -19,6 +21,8 @@ import 'package:provider/provider.dart';
 import 'package:git_touch/screens/gh_news.dart';
 import 'package:git_touch/screens/gh_search.dart';
 import 'package:git_touch/screens/gh_trending.dart';
+import 'package:git_touch/screens/ge_search.dart';
+import 'generated/l10n.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -26,7 +30,12 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  int active = 0;
+  // Created 5 different variables instead of a list as list doesn't work
+  final GlobalKey<NavigatorState> tab1 = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> tab2 = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> tab3 = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> tab4 = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> tab5 = GlobalKey<NavigatorState>();
 
   _buildScreen(int index) {
     // return GlProjectScreen(32221);
@@ -34,8 +43,8 @@ class _HomeState extends State<Home> {
     // return IssueScreen('reactjs', 'rfcs', 29);
     // return IssueScreen('reactjs', 'rfcs', 68, isPullRequest: true);
     // return Image.asset('images/spinner.webp', width: 32, height: 32);
+    // return GhRepoScreen('shreyas1599', 'test');
     final auth = Provider.of<AuthModel>(context);
-
     switch (auth.activeAccount.platform) {
       case PlatformType.github:
         switch (index) {
@@ -58,6 +67,8 @@ class _HomeState extends State<Home> {
           case 1:
             return GlGroupsScreenn();
           case 2:
+            return GlSearchScreen();
+          case 3:
             return GlUserScreen(null);
         }
         break;
@@ -76,7 +87,15 @@ class _HomeState extends State<Home> {
           case 0:
             return GtOrgsScreen();
           case 1:
-            return GtUserScreen(null);
+            return GtUserScreen(auth.activeAccount.login, isViewer: true);
+        }
+        break;
+      case PlatformType.gitee:
+        switch (index) {
+          case 0:
+            return GeSearchScreen();
+          case 1:
+            return GeUserScreen(auth.activeAccount.login, isViewer: true);
         }
         break;
     }
@@ -103,107 +122,139 @@ class _HomeState extends State<Home> {
     );
   }
 
-  List<BottomNavigationBarItem> get _navigationItems {
-    switch (Provider.of<AuthModel>(context).activeAccount.platform) {
-      case PlatformType.github:
-        return [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.rss_feed),
-            title: Text('News'),
-          ),
-          BottomNavigationBarItem(
-            icon: _buildNotificationIcon(context, false),
-            activeIcon: _buildNotificationIcon(context, true),
-            title: Text('Notification'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.whatshot),
-            title: Text('Trending'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            title: Text('Search'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            activeIcon: Icon(Icons.person),
-            title: Text('Me'),
-          ),
-        ];
-      case PlatformType.gitlab:
-        return [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            title: Text('Explore'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            title: Text('Groups'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            title: Text('Me'),
-          ),
-        ];
-      case PlatformType.bitbucket:
-        return [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            title: Text('Explore'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            title: Text('Teams'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            title: Text('Me'),
-          ),
-        ];
-      case PlatformType.gitea:
-        return [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            title: Text('Organizations'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            title: Text('Me'),
-          ),
-        ];
+  GlobalKey<NavigatorState> getNavigatorKey(int index) {
+    switch (index) {
+      case 0:
+        return tab1;
+      case 1:
+        return tab2;
+      case 2:
+        return tab3;
+      case 3:
+        return tab4;
+      case 4:
+        return tab5;
     }
+    return tab1;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeModel>(context);
     final auth = Provider.of<AuthModel>(context);
+
     if (auth.activeAccount == null) {
       return LoginScreen();
     }
 
+    List<BottomNavigationBarItem> navigationItems;
+
+    switch (auth.activeAccount.platform) {
+      case PlatformType.github:
+        navigationItems = [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.rss_feed), label: S.of(context).news),
+          BottomNavigationBarItem(
+              icon: _buildNotificationIcon(context, false),
+              activeIcon: _buildNotificationIcon(context, true),
+              label: S.of(context).notification),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.whatshot), label: S.of(context).trending),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.search), label: S.of(context).search),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              activeIcon: Icon(Icons.person),
+              label: S.of(context).me),
+        ];
+        break;
+      case PlatformType.gitlab:
+        navigationItems = [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.explore), label: S.of(context).explore),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.group), label: S.of(context).groups),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.search), label: S.of(context).search),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: S.of(context).me),
+        ];
+        break;
+      case PlatformType.bitbucket:
+        navigationItems = [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.explore), label: S.of(context).explore),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.group), label: S.of(context).teams),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: S.of(context).me),
+        ];
+        break;
+      case PlatformType.gitea:
+        navigationItems = [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.group), label: S.of(context).organizations),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: S.of(context).me),
+        ];
+        break;
+      case PlatformType.gitee:
+        navigationItems = [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.search), label: S.of(context).search),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: S.of(context).me),
+        ];
+        break;
+    }
+
     switch (theme.theme) {
       case AppThemeType.cupertino:
-        return CupertinoTabScaffold(
-          tabBar: CupertinoTabBar(items: _navigationItems),
-          tabBuilder: (context, index) {
-            return CupertinoTabView(builder: (context) {
-              return _buildScreen(index);
-            });
+        return WillPopScope(
+          onWillPop: () async {
+            return !await getNavigatorKey(auth.activeTab)
+                .currentState
+                ?.maybePop();
           },
+          child: CupertinoTabScaffold(
+            tabBuilder: (context, index) {
+              return CupertinoTabView(
+                navigatorKey: getNavigatorKey(index),
+                builder: (context) {
+                  return _buildScreen(index);
+                },
+              );
+            },
+            tabBar: CupertinoTabBar(
+              items: navigationItems,
+              currentIndex: auth.activeTab,
+              onTap: (index) {
+                if (auth.activeTab == index) {
+                  getNavigatorKey(index)
+                      .currentState
+                      ?.popUntil((route) => route.isFirst);
+                } else {
+                  auth.setActiveTab(index);
+                }
+              },
+            ),
+          ),
         );
       default:
         return Scaffold(
-          body: _buildScreen(active),
+          body: IndexedStack(
+            index: auth.activeTab,
+            children: [
+              for (var i = 0; i < navigationItems.length; i++) _buildScreen(i)
+            ],
+          ),
           bottomNavigationBar: BottomNavigationBar(
             selectedItemColor: theme.palette.primary,
-            items: _navigationItems,
-            currentIndex: active,
+            items: navigationItems,
+            currentIndex: auth.activeTab,
             type: BottomNavigationBarType.fixed,
             onTap: (int index) {
-              setState(() {
-                active = index;
-              });
+              auth.setActiveTab(index);
             },
           ),
         );

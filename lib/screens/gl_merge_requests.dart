@@ -6,35 +6,34 @@ import 'package:git_touch/widgets/app_bar_title.dart';
 import 'package:git_touch/widgets/issue_item.dart';
 import 'package:git_touch/widgets/label.dart';
 import 'package:provider/provider.dart';
+import '../generated/l10n.dart';
 
 class GlMergeRequestsScreen extends StatelessWidget {
   final String id;
   final String prefix;
   GlMergeRequestsScreen(this.id, {this.prefix});
 
-  Future<ListPayload<GitlabIssue, int>> _query(BuildContext context,
-      [int page = 1]) async {
-    final res = await Provider.of<AuthModel>(context).fetchGitlabWithPage(
-        '/projects/$id/merge_requests?state=opened&page=$page');
-    return ListPayload(
-      cursor: res.cursor,
-      hasMore: res.hasMore,
-      items: (res.data as List).map((v) => GitlabIssue.fromJson(v)).toList(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListStatefulScaffold<GitlabIssue, int>(
-      title: AppBarTitle('Merge Requests'),
-      onRefresh: () => _query(context),
-      onLoadMore: (cursor) => _query(context, cursor),
+      title: AppBarTitle(S.of(context).mergeRequests),
+      fetch: (page) async {
+        page = page ?? 1;
+        final res = await context.read<AuthModel>().fetchGitlabWithPage(
+            '/projects/$id/merge_requests?state=opened&page=$page');
+        return ListPayload(
+          cursor: res.cursor,
+          hasMore: res.hasMore,
+          items:
+              (res.data as List).map((v) => GitlabIssue.fromJson(v)).toList(),
+        );
+      },
       itemBuilder: (p) => IssueItem(
         isPr: true,
         author: p.author.username,
         avatarUrl: p.author.avatarUrl,
         commentCount: p.userNotesCount,
-        number: p.iid,
+        subtitle: '#' + p.iid.toString(),
         title: p.title,
         updatedAt: p.updatedAt,
         labels: p.labels.isEmpty

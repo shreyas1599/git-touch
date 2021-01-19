@@ -31,7 +31,9 @@ GiteaOrg _$GiteaOrgFromJson(Map<String, dynamic> json) {
     ..username = json['username'] as String
     ..fullName = json['full_name'] as String
     ..avatarUrl = json['avatar_url'] as String
-    ..description = json['description'] as String;
+    ..description = json['description'] as String
+    ..website = json['website'] as String
+    ..location = json['location'] as String;
 }
 
 Map<String, dynamic> _$GiteaOrgToJson(GiteaOrg instance) => <String, dynamic>{
@@ -40,6 +42,8 @@ Map<String, dynamic> _$GiteaOrgToJson(GiteaOrg instance) => <String, dynamic>{
       'full_name': instance.fullName,
       'avatar_url': instance.avatarUrl,
       'description': instance.description,
+      'website': instance.website,
+      'location': instance.location,
     };
 
 GiteaRepository _$GiteaRepositoryFromJson(Map<String, dynamic> json) {
@@ -183,7 +187,12 @@ GiteaIssue _$GiteaIssueFromJson(Map<String, dynamic> json) {
     ..updatedAt = json['updated_at'] == null
         ? null
         : DateTime.parse(json['updated_at'] as String)
-    ..htmlUrl = json['html_url'] as String;
+    ..state = json['state'] as String
+    ..htmlUrl = json['html_url'] as String
+    ..labels = (json['labels'] as List)
+        ?.map((e) =>
+            e == null ? null : GiteaLabel.fromJson(e as Map<String, dynamic>))
+        ?.toList();
 }
 
 Map<String, dynamic> _$GiteaIssueToJson(GiteaIssue instance) =>
@@ -194,5 +203,59 @@ Map<String, dynamic> _$GiteaIssueToJson(GiteaIssue instance) =>
       'user': instance.user,
       'comments': instance.comments,
       'updated_at': instance.updatedAt?.toIso8601String(),
+      'state': instance.state,
       'html_url': instance.htmlUrl,
+      'labels': instance.labels,
+    };
+
+GiteaLabel _$GiteaLabelFromJson(Map<String, dynamic> json) {
+  return GiteaLabel()
+    ..color = json['color'] as String
+    ..name = json['name'] as String;
+}
+
+Map<String, dynamic> _$GiteaLabelToJson(GiteaLabel instance) =>
+    <String, dynamic>{
+      'color': instance.color,
+      'name': instance.name,
+    };
+
+GiteaHeatmapItem _$GiteaHeatmapItemFromJson(Map<String, dynamic> json) {
+  return GiteaHeatmapItem()
+    ..timestamp = json['timestamp'] as int
+    ..contributions = json['contributions'] as int;
+}
+
+Map<String, dynamic> _$GiteaHeatmapItemToJson(GiteaHeatmapItem instance) =>
+    <String, dynamic>{
+      'timestamp': instance.timestamp,
+      'contributions': instance.contributions,
+    };
+
+GiteaComment _$GiteaCommentFromJson(Map<String, dynamic> json) {
+  return GiteaComment()
+    ..body = json['body'] as String
+    ..createdAt = json['created_at'] == null
+        ? null
+        : DateTime.parse(json['created_at'] as String)
+    ..htmlUrl = json['html_url'] as String
+    ..originalAuthor = json['original_author'] as String
+    ..updatedAt = json['updated_at'] == null
+        ? null
+        : DateTime.parse(json['updated_at'] as String)
+    ..id = json['id'] as int
+    ..user = json['user'] == null
+        ? null
+        : GiteaUser.fromJson(json['user'] as Map<String, dynamic>);
+}
+
+Map<String, dynamic> _$GiteaCommentToJson(GiteaComment instance) =>
+    <String, dynamic>{
+      'body': instance.body,
+      'created_at': instance.createdAt?.toIso8601String(),
+      'html_url': instance.htmlUrl,
+      'original_author': instance.originalAuthor,
+      'updated_at': instance.updatedAt?.toIso8601String(),
+      'id': instance.id,
+      'user': instance.user,
     };

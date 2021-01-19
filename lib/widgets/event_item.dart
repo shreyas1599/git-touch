@@ -29,13 +29,13 @@ class EventItem extends StatelessWidget {
 
   InlineSpan _buildRepo(BuildContext context, [String fullName]) {
     final name = fullName ?? e.repo.name;
-    return _buildLinkSpan(context, name, '/$name');
+    return _buildLinkSpan(context, name, '/github/$name');
   }
 
   InlineSpan _buildIssue(BuildContext context, int number,
       {bool isPullRequest = false}) {
     return _buildLinkSpan(context, '#$number',
-        '/${e.repoOwner}/${e.repoName}/${isPullRequest ? 'pull' : 'issues'}/$number');
+        '/github/${e.repoOwner}/${e.repoName}/${isPullRequest ? 'pull' : 'issues'}/$number');
   }
 
   Widget _buildItem({
@@ -52,7 +52,8 @@ class EventItem extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Avatar(url: e.actor.avatarUrl, linkUrl: '/' + e.actor.login),
+              Avatar(
+                  url: e.actor.avatarUrl, linkUrl: '/github/' + e.actor.login),
               SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -65,8 +66,8 @@ class EventItem extends StatelessWidget {
                           color: theme.palette.text,
                         ),
                         children: [
-                          _buildLinkSpan(
-                              context, e.actor.login, '/${e.actor.login}'),
+                          _buildLinkSpan(context, e.actor.login,
+                              '/github/${e.actor.login}'),
                           ...spans,
                         ],
                       ),
@@ -110,7 +111,7 @@ class EventItem extends StatelessWidget {
     final theme = Provider.of<ThemeModel>(context);
     return Link(
       url:
-          'https://github.com/${e.repoOwner}/${e.repoName}/compare/${e.payload.before}...${e.payload.head}',
+          '/github/${e.repoOwner}/${e.repoName}/compare/${e.payload.before}/${e.payload.head}',
       child: Container(
         padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -163,6 +164,46 @@ class EventItem extends StatelessWidget {
     );
   }
 
+  // Todo: Add a screen for the url
+  Widget _buildCommitCommentCard(BuildContext context) {
+    final theme = Provider.of<ThemeModel>(context);
+    return Link(
+      url: e.payload.comment.htmlUrl,
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: theme.palette.grayBackground,
+            borderRadius: BorderRadius.all(Radius.circular(4))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: <Widget>[
+                Text(
+                  e.payload.comment.commitId.substring(0, 7),
+                  style: TextStyle(
+                    color: theme.palette.primary,
+                    fontSize: 15,
+                    fontFamily: CommonStyle.monospace,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    e.payload.comment.body,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: TextStyle(color: theme.palette.text, fontSize: 15),
+                  ),
+                )
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildIssueCard(
       BuildContext context, GithubEventIssue issue, String body,
       {isPullRequest = false}) {
@@ -186,7 +227,7 @@ class EventItem extends StatelessWidget {
 
     return Link(
       url:
-          '/${e.repoOwner}/${e.repoName}/${isPullRequest ? 'pull' : 'issues'}/${issue.number}',
+          '/github/${e.repoOwner}/${e.repoName}/${isPullRequest ? 'pull' : 'issues'}/${issue.number}',
       child: Container(
         padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -257,16 +298,15 @@ class EventItem extends StatelessWidget {
     // https://developer.github.com/v3/activity/events/types/#event-types--payloads
     switch (e.type) {
       case 'CheckRunEvent':
-        return _buildItem(  
-          context: context,
-          spans: [
-            TextSpan(text: ' ${e.payload.action} a check run for ${e.payload.checkRun.name} '),
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(
+              text:
+                  ' ${e.payload.action} a check run for ${e.payload.checkRun.name} '),
+        ]);
       case 'CheckSuiteEvent':
-      // Needs checks permission
+        // Needs checks permission
         String conclusion = "";
-        switch(e.payload.checkSuite.conclusion) {
+        switch (e.payload.checkSuite.conclusion) {
           case 'success':
           case 'failure':
             conclusion = 'it is a ' + e.payload.checkSuite.conclusion;
@@ -281,37 +321,38 @@ class EventItem extends StatelessWidget {
             conclusion = ' it requires more action';
             break;
         }
-        return _buildItem(  
+        return _buildItem(
           context: context,
           spans: [
-            TextSpan(text: ' ${e.payload.action} the check suite and the conclusion is that $conclusion'),
+            TextSpan(
+                text:
+                    ' ${e.payload.action} the check suite and the conclusion is that $conclusion'),
           ],
         );
       case 'CommitCommentEvent':
-        return _buildItem(   
+        return _buildItem(
           context: context,
           spans: [
-            TextSpan(text: ' ${e.payload.action} a comment on the commit at '),
+            TextSpan(text: ' commented on a commit '),
+            TextSpan(text: ' at '),
             _buildRepo(context),
-            TextSpan(text: ' ${e.payload.comment.body} '),
           ],
-          card: _buildCommitsCard(context),
+          card: _buildCommitCommentCard(context),
         );
       case 'ContentReferenceEvent':
-        return _buildItem(  
-          context: context,
-          spans: [  
-            TextSpan(text: ' ${e.payload.action} a content reference at '),
-            _buildLinkSpan(
-                context, e.payload.contentReference.reference, e.payload.contentReference.reference),
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(text: ' ${e.payload.action} a content reference at '),
+          _buildLinkSpan(context, e.payload.contentReference.reference,
+              e.payload.contentReference.reference),
+        ]);
       case 'CreateEvent':
         return _buildItem(
           context: context,
           spans: <InlineSpan>[
+            TextSpan(text: ' created a ${e.payload.refType}'),
             TextSpan(
-                text: ' created a ${e.payload.refType} '),
+                text:
+                    '${e.payload.ref == null ? '' : ' ' + e.payload.ref + ' at'} '),
             _buildRepo(context),
           ],
         );
@@ -319,9 +360,10 @@ class EventItem extends StatelessWidget {
         return _buildItem(
           context: context,
           spans: <InlineSpan>[
+            TextSpan(text: ' deleted the ${e.payload.refType}'),
             TextSpan(
-              text: ' deleted ${e.payload.refType} '
-            ),
+                text:
+                    '${e.payload.ref == null ? '' : ' ' + e.payload.ref + ' at'} '),
             _buildRepo(context),
           ],
         );
@@ -340,61 +382,62 @@ class EventItem extends StatelessWidget {
       case 'GollumEvent':
         String pageNamesCreated = "";
         String pageNamesEdited = "";
-        for(GithubPagesItem page in e.payload.pages) {
-          if(page.action == "edited") {
+        for (GithubPagesItem page in e.payload.pages) {
+          if (page.action == "edited") {
             pageNamesEdited += ", " + page.pageName;
           } else {
             pageNamesCreated += ", " + page.pageName;
           }
         }
-        if(pageNamesCreated.length > 0) {
+        if (pageNamesCreated.length > 0) {
           pageNamesCreated = " created the pages: \n" + pageNamesCreated + "\n";
         }
-        if(pageNamesEdited.length > 0) {
+        if (pageNamesEdited.length > 0) {
           pageNamesEdited = " edited the pages: \n" + pageNamesEdited + "\n";
         }
 
-        return _buildItem(  
-          context: context,  
-          spans: [
-            TextSpan(  
-              text: ' $pageNamesCreated\n$pageNamesEdited '
-            )
-          ]
-        );
+        return _buildItem(
+            context: context,
+            spans: [TextSpan(text: ' $pageNamesCreated\n$pageNamesEdited ')]);
       case 'InstallationEvent':
         String action = e.payload.action;
-        if(action == 'new_permissions_accepted') {
+        if (action == 'new_permissions_accepted') {
           action = "new permission were accepted for";
         }
         return _buildItem(
           context: context,
           spans: [
-            TextSpan(text: ' $action for the Github App with id ${e.payload.installation.id}'),
+            TextSpan(
+                text:
+                    ' $action for the Github App with id ${e.payload.installation.id}'),
           ],
         );
       case 'InstallationRepositoriesEvent':
-        List<GithubNotificationItemRepo> repositoriesAdded = e.payload.installation.repositoriesAdded;
-        List<GithubNotificationItemRepo> repositoriesRemoved = e.payload.installation.repositoriesRemoved;
+        List<GithubNotificationItemRepo> repositoriesAdded =
+            e.payload.installation.repositoriesAdded;
+        List<GithubNotificationItemRepo> repositoriesRemoved =
+            e.payload.installation.repositoriesRemoved;
         String addedRepos = "";
         String removedRepos = "";
-        for(GithubNotificationItemRepo repo in repositoriesAdded) {
+        for (GithubNotificationItemRepo repo in repositoriesAdded) {
           addedRepos += repo.fullName + ", ";
         }
-        for(GithubNotificationItemRepo repo in repositoriesRemoved) {
+        for (GithubNotificationItemRepo repo in repositoriesRemoved) {
           removedRepos += repo.fullName + ", ";
         }
         String finalListOfRepos = "";
-        if(addedRepos != "") {
+        if (addedRepos != "") {
           finalListOfRepos += addedRepos + " were added to\n ";
-        } 
-        if(removedRepos != "") {
+        }
+        if (removedRepos != "") {
           finalListOfRepos += removedRepos + " were removed from";
         }
-        return _buildItem(  
+        return _buildItem(
           context: context,
           spans: [
-            TextSpan(text: ' $finalListOfRepos the installation id ${e.payload.installation.id} '),
+            TextSpan(
+                text:
+                    ' $finalListOfRepos the installation id ${e.payload.installation.id} '),
           ],
         );
       case 'IssueCommentEvent':
@@ -434,22 +477,22 @@ class EventItem extends StatelessWidget {
       case 'MarketplacePurchaseEvent':
         final action = e.payload.action;
         var messageToDisplay;
-        switch(action) {
-          case "purchased": 
+        switch (action) {
+          case "purchased":
             messageToDisplay = "purchased a Marketplace Plan";
-              break;
+            break;
           case "cancelled":
             messageToDisplay = "cancelled their Marketplace Plan";
-              break;
+            break;
           case "pending_change":
             messageToDisplay = " Marketplace Plan is pending change";
-              break;
+            break;
           case "pending_change_cancelled":
             messageToDisplay = " Pending Marketplace Plan was cancelled";
-              break;
+            break;
           case "changed":
             messageToDisplay = " changed their Marketplace Plan";
-              break;
+            break;
         }
         return _buildItem(
           context: context,
@@ -463,22 +506,22 @@ class EventItem extends StatelessWidget {
       case 'MemberEvent':
         final action = e.payload.action;
         return _buildItem(
-
           context: context,
           spans: [
             TextSpan(
-              text: ' was ${e.payload.action} ${action == 'added' ? 'to' : 'from' } '),
+                text:
+                    ' was ${e.payload.action} ${action == 'added' ? 'to' : 'from'} '),
             _buildRepo(context),
           ],
         );
       case 'ProjectCardEvent':
         String action = e.payload.action;
-        if(action == 'converted') {
+        if (action == 'converted') {
           action = ' converted the project card into an issue ';
         } else {
           action = action + ' the project card ';
         }
-        return _buildItem( 
+        return _buildItem(
           context: context,
           spans: [
             TextSpan(text: ' $action at '),
@@ -486,20 +529,18 @@ class EventItem extends StatelessWidget {
           ],
         );
       case 'ProjectColumnEvent':
-        return _buildItem(  
-          context: context,
-          spans: [
-            TextSpan(text: ' ${e.payload.action} the project column ${e.payload.projectColumn.name} at '),
-            _buildRepo(context),
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(
+              text:
+                  ' ${e.payload.action} the project column ${e.payload.projectColumn.name} at '),
+          _buildRepo(context),
+        ]);
       case 'ProjectEvent':
-        return _buildItem(  
-          context: context,
-          spans: [ 
-            TextSpan(text: ' ${e.payload.action} the project ${e.payload.project.name} '),
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(
+              text:
+                  ' ${e.payload.action} the project ${e.payload.project.name} '),
+        ]);
       case 'PublicEvent':
         return _buildItem(
           context: context,
@@ -523,15 +564,12 @@ class EventItem extends StatelessWidget {
         );
       case 'PullRequestReviewEvent':
         final pr = e.payload.pullRequest;
-        return _buildItem(
-          context: context,
-          spans: [  
-            TextSpan(text: ' ${e.payload.action} the pull request review '),
-            _buildIssue(context, pr.number, isPullRequest: true),
-            TextSpan(text: ' at '),
-            _buildRepo(context),
-          ]  
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(text: ' ${e.payload.action} the pull request review '),
+          _buildIssue(context, pr.number, isPullRequest: true),
+          TextSpan(text: ' at '),
+          _buildRepo(context),
+        ]);
       case 'PullRequestReviewCommentEvent':
         final pr = e.payload.pullRequest;
         return _buildItem(
@@ -565,23 +603,19 @@ class EventItem extends StatelessWidget {
       // case 'RepositoryImportEvent':
       // // Uses Source Imports API
       case 'RepositoryVulnerabilityAlertEvent':
-        return _buildItem(  
-          context: context,
-          spans: [  
-            TextSpan(  
-              text: ' Security alert involving the package ${e.payload.alert.affectedPackageName} between versions ${e.payload.alert.affectedRange} was {e.payload.action}ed',
-            )
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(
+            text:
+                ' Security alert involving the package ${e.payload.alert.affectedPackageName} between versions ${e.payload.alert.affectedRange} was {e.payload.action}ed',
+          )
+        ]);
       case 'SecurityAdvisoryEvent':
-        return _buildItem(  
-          context: context,
-          spans: [
-            TextSpan(
-              text: ' Security advisory regarding ${e.payload.securityAdvisory.summary} was ${e.payload.action} ',
-            )
-          ]
-        );
+        return _buildItem(context: context, spans: [
+          TextSpan(
+            text:
+                ' Security advisory regarding ${e.payload.securityAdvisory.summary} was ${e.payload.action} ',
+          )
+        ]);
       case 'WatchEvent':
         return _buildItem(
           context: context,
